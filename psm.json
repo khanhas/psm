@@ -1,0 +1,5 @@
+{
+    "list": "Get-Command -Type Application | ForEach-Object { $_.Name }",
+    "export": "psm list | Export-Csv D:\\Export2.csv",
+    "env": "$PSVersionTable"
+}

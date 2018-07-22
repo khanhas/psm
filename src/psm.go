@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -8,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	yaml "gopkg.in/yaml.v2"
 )
@@ -77,17 +79,20 @@ func readJSON(filePath string) map[string]string {
 	}
 
 	var s interface{}
-	errJSON := json.Unmarshal(fileContent, &s)
+	err = json.Unmarshal(fileContent, &s)
 
-	if errJSON != nil {
-		panic(errJSON)
+	if err != nil {
+		panic(err)
 	}
 
 	m := s.(map[string]interface{})
 
 	var mapped = make(map[string]string)
 	for k, v := range m {
-		mapped[k] = v.(string)
+		switch v.(type) {
+		case string:
+			mapped[k] = v.(string)
+		}
 	}
 
 	return mapped
@@ -97,41 +102,118 @@ func readYAML(filePath string) map[string]string {
 	fileContent, err := ioutil.ReadFile(filePath)
 
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	var s interface{}
-	errJSON := yaml.Unmarshal(fileContent, &s)
+	err = yaml.Unmarshal(fileContent, &s)
 
-	if errJSON != nil {
-		panic(errJSON)
+	if err != nil {
+		log.Fatal(err)
 	}
+
 	m := s.(map[interface{}]interface{})
 
 	var mapped = make(map[string]string)
 	for k, v := range m {
-		mapped[k.(string)] = v.(string)
+		switch k.(type) {
+		case string:
+			switch k.(type) {
+			case string:
+				fmt.Println(k, v)
+				mapped[k.(string)] = v.(string)
+			}
+		}
 	}
 
 	return mapped
 }
 
-func InitJSON() {
-	fmt.Println("Creating psm.json")
-}
+// ScanFolderRecursively return array of file path that has `.ps1`
+// extension
+func ScanFolderRecursively(folderPath string) []string {
+	dir, err := ioutil.ReadDir(folderPath)
 
-func InitYAML() {
-	fmt.Println("Creating psm.yaml")
-}
+	var collection = make([]string, 0)
 
-func SetPowershellPath(exePath string) string {
-	if len(exePath) == 0 {
-		exePath = "powershell"
+	if err != nil {
+		return collection
 	}
-	ioutil.WriteFile(GetPSMPath()+"/powershell-path", []byte(exePath), 0644)
-	return exePath
+
+	for _, v := range dir {
+		currentPath := filepath.Join(folderPath, v.Name())
+		if v.IsDir() {
+			collection = append(collection, ScanFolderRecursively(currentPath)...)
+		} else if strings.ToLower(filepath.Ext(v.Name())) == ".ps1" {
+			currentPath = "." + string(os.PathSeparator) + currentPath
+			collection = append(collection, currentPath)
+		}
+	}
+
+	return collection
 }
 
+// FileListToMappedObject convert array of files path to an object
+// that has keys are file name and values are file path.
+// Duplicated file name is postfixed its index
+func FileListToMappedObject(fileList []string) map[string]string {
+	results := make(map[string]string)
+	duplicatedName := make(map[string]int)
+	for _, v := range fileList {
+		// Remove extention in file name
+		baseName := strings.Replace(filepath.Base(v), filepath.Ext(v), "", 1)
+		if results[baseName] != "" {
+			duplicatedName[baseName]++
+			baseName = fmt.Sprintf("%s%d", baseName, duplicatedName[baseName])
+		}
+		results[baseName] = v
+	}
+	return results
+}
+
+// InitJSON scans current folder recursively, maps all `ps1`
+// files with their name and path. Then marshal them to json
+// format and write to `psm.json` file
+func InitJSON() {
+	fmt.Println("Auto-generate psm.json")
+	_, err := os.Stat("psm.json")
+	if err == nil {
+		if !ReadAnswer("psm.json is found in current folder. Overwrite? [y/N]: ", false) {
+			return
+		}
+	}
+	list := ScanFolderRecursively(".")
+	mapped := FileListToMappedObject(list)
+	marshal, err := json.MarshalIndent(mapped, "", "    ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	ioutil.WriteFile("psm.json", marshal, 0644)
+	fmt.Println("psm.json is created successfully!")
+}
+
+// InitYAML scans current folder recursively, maps all `ps1`
+// files with their name and path. Then marshal them to yaml
+// format and write to `psm.yaml` file
+func InitYAML() {
+	fmt.Println("Auto-generate psm.yaml")
+	_, err := os.Stat("psm.yaml")
+	if err == nil {
+		if !ReadAnswer("psm.yaml is found in current folder. Overwrite? [y/N]: ", false) {
+			return
+		}
+	}
+	list := ScanFolderRecursively(".")
+	mapped := FileListToMappedObject(list)
+	marshal, err := yaml.Marshal(mapped)
+	if err != nil {
+		log.Fatal(err)
+	}
+	ioutil.WriteFile("psm.yaml", marshal, 0644)
+	fmt.Println("psm.yaml is created successfully!")
+}
+
+// GetPSMPath returns `psm` root folder
 func GetPSMPath() string {
 	ex, err := os.Executable()
 	if err != nil {
@@ -144,6 +226,24 @@ func GetPSMPath() string {
 	return ex
 }
 
+// GetPowershellPathStorageFilePath returns `powershell-path` file path.
+func GetPowershellPathStorageFilePath() string {
+	return GetPSMPath() + "/powershell-path"
+}
+
+// SetPowershellPath store custom powershell executable path in
+// `powershell-path` file and returns that path.
+func SetPowershellPath(exePath string) string {
+	if len(exePath) == 0 {
+		exePath = "powershell"
+	}
+	ioutil.WriteFile(GetPowershellPathStorageFilePath(), []byte(exePath), 0644)
+	return exePath
+}
+
+// GetPowershellPath returns stored powershell host path or name
+// in `powershell-path` file.
+// If no path is set or powershell-path file is not found, returns `powershell`
 func GetPowershellPath() string {
 	_, err := os.Stat(GetPSMPath() + "/powershell-path")
 	if err == nil {
@@ -153,4 +253,23 @@ func GetPowershellPath() string {
 		}
 	}
 	return SetPowershellPath("powershell")
+}
+
+// ReadAnswer prints out a yes/no form with string from `info`
+// and returns boolean value based on user input (`y` or `n`) or
+// return `defaultAnswer` if input is omitted
+// If input is neither of them, print form again.
+func ReadAnswer(info string, defaultAnswer bool) bool {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print(info)
+	text, _ := reader.ReadString('\n')
+	text = strings.Replace(strings.ToLower(text), "\r\n", "", 1)
+	if text == "" {
+		return defaultAnswer
+	} else if text == "y" {
+		return true
+	} else if text == "n" {
+		return false
+	}
+	return ReadAnswer(info, defaultAnswer)
 }

@@ -1,23 +1,29 @@
 package main
 
 import (
-	"bufio"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
-	yaml "gopkg.in/yaml.v2"
+	"./inits"
+	"./parser"
+	"./utils"
 )
+
+const (
+	version = "1.0.0"
+)
+
+var supportedFile = []string{
+	"psm.yaml",
+	"psm.json",
+}
 
 func main() {
 	args := os.Args
 	if len(args) < 2 {
-		fmt.Println("Please specify which script you want to execute!")
+		help()
 		return
 	}
 
@@ -25,251 +31,142 @@ func main() {
 	if len(args) > 2 {
 		detail = args[2]
 	}
-	var powershellPath = GetPowershellPath()
-
-	var scripts map[string]string
-
-	_, err := os.Stat("psm.json")
-	if err != nil {
-		_, err = os.Stat("psm.yaml")
-		if err != nil {
-			fmt.Println("Cannot find psm.json and psm.yaml!")
-			return
-		}
-		scripts = readYAML("psm.yaml")
-	} else {
-		scripts = readJSON("psm.json")
-	}
 
 	switch args[1] {
-	case "-i":
-		InitJSON()
-	case "-ij":
-		InitJSON()
-	case "--Init-JSON":
-		InitJSON()
-	case "-iy":
-		InitYAML()
-	case "--Init-YAML":
-		InitYAML()
-	case "-s":
-		SetPowershellPath(detail)
+	case "-i", "--init":
+		if len(detail) > 0 {
+			switch detail {
+			case "yaml":
+				inits.YAML()
+			case "json":
+				inits.JSON()
+			}
+		} else {
+			inits.YAML()
+		}
+	case "-s", "--set-path":
+		utils.SetPowershellPath(detail)
+	case "-l", "--list-script":
+		names := getScriptNames()
+		exitOnEmpty(len(names))
+		list(names)
+	case "-c", "--complete":
+		names := getScriptNames()
+		names = append(names,
+			"--init",
+			"--complete",
+			"--help",
+			"--list-script",
+			"--set-path",
+		)
+
+		if len(detail) > 0 {
+			var position = strings.LastIndex(detail, " ")
+			if position > 0 {
+				position++
+			} else {
+				position = 0
+			}
+			wordToComplete := detail[position:len(detail)]
+			for _, v := range names {
+				if strings.Index(v, wordToComplete) == 0 {
+					fmt.Println(v)
+				}
+			}
+		} else {
+			list(names)
+		}
+	case "-h", "--help":
+		help()
+	case "-v", "--version":
+		fmt.Println(version)
 	default: // Execute script
-		for k, v := range scripts {
-			if k == args[1] {
-				args[0] = "-Command"
-				args[1] = v
-				cmd := exec.Command(powershellPath, args...)
-				cmd.Stdout = os.Stdout
-				cmd.Stderr = os.Stderr
-				cmd.Run()
-				return
-			}
+		scripts := gatherScripts()
+		exitOnEmpty(len(scripts))
+		command := scripts[args[1]]
+		if len(command) != 0 {
+			args[0] = "-Command"
+			args[1] = command
+			powershellPath := utils.GetPowershellPath()
+			cmd := exec.Command(powershellPath, args...)
+			cmd.Stdin = os.Stdin
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Run()
+		} else {
+			fmt.Println("Script is not available!")
 		}
-		fmt.Println("Script is not available!")
-		return
 	}
+	return
 }
 
-func readJSON(filePath string) map[string]string {
-	fileContent, err := ioutil.ReadFile(filePath)
-
-	if err != nil {
-		panic(err)
-	}
-
-	var s interface{}
-	err = json.Unmarshal(fileContent, &s)
-
-	if err != nil {
-		panic(err)
-	}
-
-	m := s.(map[string]interface{})
-
-	var mapped = make(map[string]string)
-	for k, v := range m {
-		switch v.(type) {
-		case string:
-			mapped[k] = v.(string)
+func gatherScripts() map[string]string {
+	for _, v := range supportedFile {
+		_, err := os.Stat(v)
+		if err == nil {
+			return parser.Parse(v)
 		}
 	}
-
-	return mapped
+	return nil
 }
 
-func readYAML(filePath string) map[string]string {
-	fileContent, err := ioutil.ReadFile(filePath)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var s interface{}
-	err = yaml.Unmarshal(fileContent, &s)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	m := s.(map[interface{}]interface{})
-
-	var mapped = make(map[string]string)
-	for k, v := range m {
-		switch k.(type) {
-		case string:
-			switch k.(type) {
-			case string:
-				fmt.Println(k, v)
-				mapped[k.(string)] = v.(string)
-			}
-		}
-	}
-
-	return mapped
-}
-
-// ScanFolderRecursively return array of file path that has `.ps1`
-// extension
-func ScanFolderRecursively(folderPath string) []string {
-	dir, err := ioutil.ReadDir(folderPath)
-
-	var collection = make([]string, 0)
-
-	if err != nil {
-		return collection
-	}
-
-	for _, v := range dir {
-		currentPath := filepath.Join(folderPath, v.Name())
-		if v.IsDir() {
-			collection = append(collection, ScanFolderRecursively(currentPath)...)
-		} else if strings.ToLower(filepath.Ext(v.Name())) == ".ps1" {
-			currentPath = "." + string(os.PathSeparator) + currentPath
-			collection = append(collection, currentPath)
-		}
-	}
-
-	return collection
-}
-
-// FileListToMappedObject convert array of files path to an object
-// that has keys are file name and values are file path.
-// Duplicated file name is postfixed its index
-func FileListToMappedObject(fileList []string) map[string]string {
-	results := make(map[string]string)
-	duplicatedName := make(map[string]int)
-	for _, v := range fileList {
-		// Remove extention in file name
-		baseName := strings.Replace(filepath.Base(v), filepath.Ext(v), "", 1)
-		if results[baseName] != "" {
-			duplicatedName[baseName]++
-			baseName = fmt.Sprintf("%s%d", baseName, duplicatedName[baseName])
-		}
-		results[baseName] = v
+func getScriptNames() []string {
+	scripts := gatherScripts()
+	results := make([]string, 0)
+	for k := range scripts {
+		results = append(results, k)
 	}
 	return results
 }
 
-// InitJSON scans current folder recursively, maps all `ps1`
-// files with their name and path. Then marshal them to json
-// format and write to `psm.json` file
-func InitJSON() {
-	fmt.Println("Auto-generate psm.json")
-	_, err := os.Stat("psm.json")
-	if err == nil {
-		if !ReadAnswer("psm.json is found in current folder. Overwrite? [y/N]: ", false) {
-			return
-		}
+func list(scripts []string) {
+	for _, v := range scripts {
+		fmt.Println(v)
 	}
-	list := ScanFolderRecursively(".")
-	mapped := FileListToMappedObject(list)
-	marshal, err := json.MarshalIndent(mapped, "", "    ")
-	if err != nil {
-		log.Fatal(err)
-	}
-	ioutil.WriteFile("psm.json", marshal, 0644)
-	fmt.Println("psm.json is created successfully!")
 }
 
-// InitYAML scans current folder recursively, maps all `ps1`
-// files with their name and path. Then marshal them to yaml
-// format and write to `psm.yaml` file
-func InitYAML() {
-	fmt.Println("Auto-generate psm.yaml")
-	_, err := os.Stat("psm.yaml")
-	if err == nil {
-		if !ReadAnswer("psm.yaml is found in current folder. Overwrite? [y/N]: ", false) {
-			return
-		}
+func exitOnEmpty(length int) {
+	if length == 0 {
+		fmt.Println("Could not locate any psm file. Tried:")
+		fmt.Println(strings.Join(supportedFile[:], "\n"))
+		os.Exit(1)
 	}
-	list := ScanFolderRecursively(".")
-	mapped := FileListToMappedObject(list)
-	marshal, err := yaml.Marshal(mapped)
-	if err != nil {
-		log.Fatal(err)
-	}
-	ioutil.WriteFile("psm.yaml", marshal, 0644)
-	fmt.Println("psm.yaml is created successfully!")
 }
 
-// GetPSMPath returns `psm` root folder
-func GetPSMPath() string {
-	ex, err := os.Executable()
-	if err != nil {
-		log.Fatal(err)
-	}
-	ex, err = filepath.Abs(filepath.Dir(ex))
-	if err != nil {
-		log.Fatal(err)
-	}
-	return ex
-}
+func help() {
+	fmt.Print(`
+SYNOPSIS
+psm [-i [ext]] [-s [path]] [-c [word]] [-l] [-h] script_alias
 
-// GetPowershellPathStorageFilePath returns `powershell-path` file path.
-func GetPowershellPathStorageFilePath() string {
-	return GetPSMPath() + "/powershell-path"
-}
+DESCRIPTION
+Run powershell script with shorthand alias.
 
-// SetPowershellPath store custom powershell executable path in
-// `powershell-path` file and returns that path.
-func SetPowershellPath(exePath string) string {
-	if len(exePath) == 0 {
-		exePath = "powershell"
-	}
-	ioutil.WriteFile(GetPowershellPathStorageFilePath(), []byte(exePath), 0644)
-	return exePath
-}
+OPTIONS
+-i <ext>, --init <ext>                Generate config in current directory (yaml, json) (default = yaml)
+-s <path>, --set-path <path>          Set powershell path/command (default = powershell)
+-c <keyword>, --complete <keyword>    Print possible script aliases that match with keyword
+-l, --list                            List all available script aliases
+-h, --help                            Print this help and exit
+-v, --version                         Print version number and exit
 
-// GetPowershellPath returns stored powershell host path or name
-// in `powershell-path` file.
-// If no path is set or powershell-path file is not found, returns `powershell`
-func GetPowershellPath() string {
-	_, err := os.Stat(GetPSMPath() + "/powershell-path")
-	if err == nil {
-		storedPath, err := ioutil.ReadFile(GetPSMPath() + "/powershell-path")
-		if err == nil {
-			return string(storedPath)
-		}
-	}
-	return SetPowershellPath("powershell")
-}
+EXAMPLES
+# Generate a psm.json
+psm -i json
 
-// ReadAnswer prints out a yes/no form with string from `info`
-// and returns boolean value based on user input (`y` or `n`) or
-// return `defaultAnswer` if input is omitted
-// If input is neither of them, print form again.
-func ReadAnswer(info string, defaultAnswer bool) bool {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print(info)
-	text, _ := reader.ReadString('\n')
-	text = strings.Replace(strings.ToLower(text), "\r\n", "", 1)
-	if text == "" {
-		return defaultAnswer
-	} else if text == "y" {
-		return true
-	} else if text == "n" {
-		return false
-	}
-	return ReadAnswer(info, defaultAnswer)
+# Set pwsh as default shell
+psm -s pwsh
+
+# Set powershell.exe in D:\my-powershell-fork as default shell
+psm --set-path "D:\my-powershell-fork\powershell.exe"
+
+# Run "fresh" script
+psm fresh
+
+# Run "build" script then chaining with writing "Built!" to output
+psm build | Write-Output "Built!"
+
+# Chains 3 scripts and run after each other
+psm clean | psm configure | psm build
+
+`)
 }

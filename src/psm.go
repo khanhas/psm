@@ -162,11 +162,5 @@ psm --set-path "D:\my-powershell-fork\powershell.exe"
 # Run "fresh" script
 psm fresh
 
-# Run "build" script then chaining with writing "Built!" to output
-psm build | Write-Output "Built!"
-
-# Chains 3 scripts and run after each other
-psm clean | psm configure | psm build
-
 `)
 }

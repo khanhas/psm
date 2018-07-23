@@ -30,8 +30,8 @@ In terminal, you just need to type and run:
 ## Features:
 - Execute PS scripts in other kind of shells
 - Chains and pipe commands effortlessly
-- Scans current working folder recursively to find PS scripts and [auto-generate]() psm config file.
-- Execute scripts in different versions of powershell with no fuss. Just use [`--set-path`]().
+- Scans current working folder recursively to find PS scripts and [auto-generate](https://github.com/khanhas/psm/blob/master/README.md#-i-ext---init-ext) psm config file.
+- Execute scripts in different versions of powershell with no fuss. Just use [`--set-path`](https://github.com/khanhas/psm/blob/master/README.md#-s-path---set-path-path).
 - Supports autocomplete for: powershell, bash, zsh. Check out [register-completion scripts](https://github.com/khanhas/psm/tree/master/scripts/).
 - Need more? Post an issue or make pull request!
 
@@ -66,7 +66,7 @@ Print version number and exit
 
 ## Example:
 Put a `psm.json` or `psm.yaml` in current working folder:  
-Or use [`--init`]() option to auto-generate one:
+Or use [`--init`](https://github.com/khanhas/psm/blob/master/README.md#-i-ext---init-ext) option to auto-generate one:
 
 ![image](https://i.imgur.com/dRkgsOe.png)
   

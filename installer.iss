@@ -21,9 +21,9 @@ AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={pf}\{#MyAppName}
 DisableProgramGroupPage=yes
-OutputDir=D:\psm\bin\
+OutputDir=.\bin\
 OutputBaseFilename=psm-{#MyAppVersion}-win-installer
-SetupIconFile=D:\psm\asset\icon.ico
+SetupIconFile=.\asset\icon.ico
 Compression=lzma
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64
@@ -32,8 +32,8 @@ ArchitecturesInstallIn64BitMode=x64
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "D:\psm\bin\windows\x64\psm.exe"; DestDir: "{app}"; Check: Is64BitInstallMode; BeforeInstall: PreInstall;
-Source: "D:\psm\bin\windows\x86\psm.exe"; DestDir: "{app}"; Check: not Is64BitInstallMode; BeforeInstall: PreInstall;
+Source: ".\bin\windows\x64\psm.exe"; DestDir: "{app}"; Check: Is64BitInstallMode; BeforeInstall: PreInstall;
+Source: ".\bin\windows\x86\psm.exe"; DestDir: "{app}"; Check: not Is64BitInstallMode; BeforeInstall: PreInstall;
 
 [Icons]
 Name: "{commonprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

@@ -38,7 +38,9 @@ In terminal, you just need to type and run:
 ## Usage:
 ### Synopsis
 ```bash
-psm [-i [ext]] [-s [path]] [-c [word]] [-l] [-h] script_alias
+psm [-i <ext>] [-s <path>] [-c <keyword>] [-l] [-h] [-v] 
+
+psm script_alias
 ```
 
 ### Options

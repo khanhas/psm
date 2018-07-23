@@ -40,6 +40,21 @@ In terminal, you just need to type and run:
 - Supports autocomplete for: powershell, bash, zsh. Check out [register-completion scripts](https://github.com/khanhas/psm/tree/master/scripts/).
 - Need more? Post an issue or make pull request!
 
+## Install
+Download distribution corresponding to your system in [release]() page
+### Windows
+- Via installer: After installing succesfully, run `refreshenv` in terminal at least one then you're good to go.
+- Via zip: After unzipping `psm.exe`, appends its folder path to `PATH` enviroment variable and run `refreshenv` in terminal at least one.
+
+### Linux
+Unpacks gzip file.
+Appends
+```
+alias psm=/path/to/psm
+```
+to your `.bashrc` or `.zshrc`.  
+Restart your terminal.
+
 ## Usage:
 ### Synopsis
 ```bash
@@ -133,5 +148,5 @@ cd psm
 
 ## Roadmap
 - [x] Init command: Gather all scripts file in project folder and automatically generate a `psm.json`/`psm.yaml`
-- [ ] Make an installer
-- [ ] Linux support. You can build and run it in Linux now but you have to set alias for psm in your shell config to run it globally.
+- [x] Make an installer
+- [x] Linux support.

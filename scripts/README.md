@@ -21,12 +21,12 @@ To enable tab completion in PowerShell, edit your PowerShell profile:
 notepad $PROFILE
 ```
 
-Add the contents of `register-completion.ps1` to this file and save.
+Add the contents of [`register-completion.ps1`](https://github.com/khanhas/psm/blob/master/scripts/register-completion.ps1) to this file and save.
 
 ### bash
 
-To enable tab completion in bash, edit your .bashrc file to add the contents of `register-completion.bash`.
+To enable tab completion in bash, edit your .bashrc file to add the contents of [`register-completion.bash`](https://github.com/khanhas/psm/blob/master/scripts/register-completion.bash).
 
 ### zsh
 
-To enable tab completion in zsh, edit your .zshrc file to add the contents of `register-completions.zsh`.
+To enable tab completion in zsh, edit your .zshrc file to add the contents of [`register-completions.zsh`](https://github.com/khanhas/psm/blob/master/scripts/register-completion.zsh).

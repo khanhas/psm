@@ -1,8 +1,13 @@
+<div align="center">
+  <img src="https://github.com/khanhas/psm/blob/master/asset/icon.svg">
+</div>
+
 # psm - Powershell Script Manager 
  
 Execute Powershell script/command or chain of scripts/command with pre-defined alias.  
   
 psm exists just to save your time!  
+
 No need to import scripts repeatedly every time setting up your working enviroment.   
 No need to spread out simple functions to seperated scripts. From now on, just gather them all in one:  
 ```ps

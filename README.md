@@ -3,6 +3,7 @@
 </div>
 
 # psm - Powershell Script Manager 
+[![CircleCI](https://circleci.com/gh/khanhas/psm/tree/master.svg?style=svg)](https://circleci.com/gh/khanhas/psm/tree/master)
  
 Execute Powershell script/command or chain of scripts/command with pre-defined alias.  
   

@@ -23,5 +23,5 @@ jobs:
 
       # specify any bash command here prefixed with `run: `
       - run: go get "gopkg.in/yaml.v2"
-      - run: go get "github.com/lithammer/fuzzysearch"
+      - run: go get "github.com/lithammer/fuzzysearch/fuzzy"
       - run: go build ./src/psm.go

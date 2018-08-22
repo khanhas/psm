@@ -10,7 +10,11 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
-func Parse(file string) map[string]string {
+type Commands map[string]string
+
+// Parse detects supported file extension and use
+// corresponding function to parse file content.
+func Parse(file string) Commands {
 	content := readContent(file)
 	extension := filepath.Ext(file)
 	extension = strings.ToLower(extension)
@@ -36,44 +40,36 @@ func readContent(file string) []byte {
 	return fileContent
 }
 
-func parseJSON(content []byte) map[string]string {
-	var s interface{}
-	err := json.Unmarshal(content, &s)
+func parseJSON(content []byte) Commands {
+	var raw interface{}
+	err := json.Unmarshal(content, &raw)
 
 	if err != nil {
 		panic(err)
 	}
 
-	m := s.(map[string]interface{})
-
-	var mapped = make(map[string]string)
-	for k, v := range m {
-		switch v.(type) {
-		case string:
-			mapped[k] = v.(string)
-		}
-	}
-
-	return mapped
+	return MapCommands(raw)
 }
 
-func parseYAML(content []byte) map[string]string {
-	var s interface{}
-	err := yaml.Unmarshal(content, &s)
+func parseYAML(content []byte) Commands {
+	var raw interface{}
+	err := yaml.Unmarshal(content, &raw)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	m := s.(map[interface{}]interface{})
+	return MapCommands(raw)
+}
 
-	var mapped = make(map[string]string)
-	for k, v := range m {
+func MapCommands(raw interface{}) Commands {
+	mappedRaw := raw.(map[interface{}]interface{})
+	mapped := make(Commands)
+	for k, v := range mappedRaw {
 		if isString(k) && isString(v) {
 			mapped[k.(string)] = v.(string)
 		}
 	}
-
 	return mapped
 }
 

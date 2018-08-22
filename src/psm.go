@@ -4,8 +4,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 
+	"github.com/lithammer/fuzzysearch/fuzzy"
+
+	"./config"
 	"./inits"
 	"./parser"
 	"./utils"
@@ -20,8 +24,11 @@ var supportedFile = []string{
 	"psm.json",
 }
 
+var psmConfig = config.ParseConfig()
+
 func main() {
 	args := os.Args
+
 	if len(args) < 2 {
 		help()
 		return
@@ -48,7 +55,6 @@ func main() {
 		utils.SetPowershellPath(detail)
 	case "-l", "--list-script":
 		names := getScriptNames()
-		exitOnEmpty(len(names))
 		list(names)
 	case "-c", "--complete":
 		names := getScriptNames()
@@ -81,37 +87,56 @@ func main() {
 	case "-v", "--version":
 		fmt.Println(version)
 	default: // Execute script
-		scripts := gatherScripts()
-		exitOnEmpty(len(scripts))
+		scripts := gatherCommands()
 		command := scripts[args[1]]
 		if len(command) != 0 {
 			args[0] = "-Command"
 			args[1] = command
-			powershellPath := utils.GetPowershellPath()
-			cmd := exec.Command(powershellPath, args...)
+			cmd := exec.Command(psmConfig.PowerShellPath, args...)
 			cmd.Stdin = os.Stdin
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			cmd.Run()
 		} else {
-			fmt.Println("Script is not available!")
+			fmt.Println("Command '" + args[1] + "' not found.")
+			matches := fuzzy.RankFind(args[1], getScriptNames())
+			if matches.Len() > 0 {
+				sort.Sort(matches)
+				fmt.Println("Did you mean '" + matches[0].Target + "'?")
+			}
 		}
 	}
 	return
 }
 
-func gatherScripts() map[string]string {
+func gatherCommands() parser.Commands {
+	commands := make(parser.Commands, 0)
+
+	for cmd, script := range psmConfig.GlobalCommands {
+		commands[cmd] = script
+	}
+
 	for _, v := range supportedFile {
 		_, err := os.Stat(v)
 		if err == nil {
-			return parser.Parse(v)
+			localCommands := parser.Parse(v)
+			for cmd, script := range localCommands {
+				commands[cmd] = script
+			}
+			break
 		}
 	}
-	return nil
+
+	if len(commands) == 0 {
+		fmt.Println("Could not find any commands.")
+		os.Exit(1)
+	}
+
+	return commands
 }
 
 func getScriptNames() []string {
-	scripts := gatherScripts()
+	scripts := gatherCommands()
 	results := make([]string, 0)
 	for k := range scripts {
 		results = append(results, k)
@@ -122,14 +147,6 @@ func getScriptNames() []string {
 func list(scripts []string) {
 	for _, v := range scripts {
 		fmt.Println(v)
-	}
-}
-
-func exitOnEmpty(length int) {
-	if length == 0 {
-		fmt.Println("Could not locate any psm file. Tried:")
-		fmt.Println(strings.Join(supportedFile[:], "\n"))
-		os.Exit(1)
 	}
 }
 

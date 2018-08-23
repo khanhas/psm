@@ -1,4 +1,4 @@
-$version="1.0.0"
+$version="1.1.0"
 $name="psm"
 $nameVersion="$($name)-$($version)"
 $innoPath="C:\Program Files (x86)\Inno Setup 5\ISCC.exe"
